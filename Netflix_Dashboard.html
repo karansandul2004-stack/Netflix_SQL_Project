@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Netflix Content Analysis Dashboard — Karandeep Sandul</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red: #E50914;
+    --dark: #141414;
+    --surface: #1a1a1a;
+    --card: #222222;
+    --card-border: #333333;
+    --text-primary: #ffffff;
+    --text-secondary: #aaaaaa;
+    --text-muted: #666666;
+    --grid-line: #2a2a2a;
+  }
+
+  body {
+    background: var(--dark);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: #0d0d0d;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    background: var(--red);
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    width: 38px; height: 38px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: -1px;
+    flex-shrink: 0;
+  }
+  .header-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+  .header-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+  .header-badge {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .badge-dot { display: inline-block; width: 7px; height: 7px; background: #22c55e; border-radius: 50%; margin-right: 6px; }
+
+  /* ── Layout ── */
+  .main { padding: 1.5rem 2rem 3rem; max-width: 1400px; margin: 0 auto; }
+
+  /* ── KPI Row ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    border-top: 3px solid var(--red);
+  }
+  .kpi-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .kpi-value { font-size: 26px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text-secondary); margin-top: 5px; }
+  .kpi-sub.up { color: #22c55e; }
+
+  /* ── Chart grid ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid-full { margin-bottom: 14px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .card-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
+
+  /* ── Horizontal bars ── */
+  .hbar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .hbar-rank { font-size: 10px; color: var(--text-muted); width: 14px; flex-shrink: 0; text-align: right; }
+  .hbar-label { font-size: 11px; color: var(--text-secondary); width: 140px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hbar-track { flex: 1; background: #2a2a2a; border-radius: 3px; height: 14px; }
+  .hbar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+  .hbar-val { font-size: 11px; font-weight: 600; color: var(--text-primary); width: 42px; text-align: right; flex-shrink: 0; }
+
+  /* ── Insight bar ── */
+  .insight {
+    border-left: 3px solid var(--red);
+    padding: 8px 12px;
+    background: #1d1010;
+    border-radius: 0 6px 6px 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-top: 10px;
+  }
+  .insight strong { color: var(--text-primary); }
+
+  /* ── Donut legend ── */
+  .donut-wrap { display: flex; align-items: center; gap: 20px; }
+  .donut-canvas { flex-shrink: 0; }
+  .donut-legend { flex: 1; }
+  .donut-item { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; }
+  .donut-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .donut-pct { font-size: 18px; font-weight: 700; color: var(--text-primary); display: block; line-height: 1; }
+  .donut-lbl { font-size: 11px; color: var(--text-muted); }
+
+  /* ── Stats grid ── */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-item { background: #1a1a1a; border-radius: 8px; padding: 12px 14px; }
+  .stat-num { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+  .stat-desc { font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding: 1.5rem;
+    font-size: 11px;
+    color: var(--text-muted);
+    border-top: 1px solid #222;
+    margin-top: 1rem;
+  }
+  .footer a { color: var(--red); text-decoration: none; }
+
+  canvas { display: block; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">N</div>
+    <div>
+      <div class="header-title">Netflix Content Analysis Dashboard</div>
+      <div class="header-sub">SQL Portfolio Project &nbsp;·&nbsp; Karandeep Sandul</div>
+    </div>
+  </div>
+  <div class="header-badge">
+    <span class="badge-dot"></span>8,807 titles &nbsp;·&nbsp; MySQL &nbsp;·&nbsp; 35+ queries
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- KPI Row -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Total Titles</div>
+      <div class="kpi-value">8,807</div>
+      <div class="kpi-sub">Netflix library snapshot</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Movies</div>
+      <div class="kpi-value">6,131</div>
+      <div class="kpi-sub up">▲ 69.62% of library</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">TV Shows</div>
+      <div class="kpi-value">2,676</div>
+      <div class="kpi-sub">30.38% of library</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Movie Length</div>
+      <div class="kpi-value">99.6<span style="font-size:14px;font-weight:400;color:var(--text-muted)"> min</span></div>
+      <div class="kpi-sub">~1 hr 40 min</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Delay to Netflix</div>
+      <div class="kpi-value">4.69<span style="font-size:14px;font-weight:400;color:var(--text-muted)"> yrs</span></div>
+      <div class="kpi-sub">Release → added</div>
+    </div>
+  </div>
+
+  <!-- Row 1: Year chart full width -->
+  <div class="grid-full">
+    <div class="card">
+      <div class="card-title">Titles Added to Netflix Per Year</div>
+      <div class="card-sub">Library growth 2012 – 2021</div>
+      <div style="position:relative;width:100%;height:220px;">
+        <canvas id="yearChart" role="img" aria-label="Bar chart of titles added per year. Peak was 2019 with 1,999 titles.">
+          2012: 3, 2013: 10, 2014: 23, 2015: 73, 2016: 418, 2017: 1164, 2018: 1625, 2019: 1999, 2020: 1878, 2021: 1498
+        </canvas>
+      </div>
+      <div class="insight">
+        <strong>Peak year was 2019</strong> with 1,999 titles added — nearly 30× more than 2015 (73 titles). 
+        Growth accelerated sharply after 2016 as Netflix ramped up global content acquisition.
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Content split + Rating distribution -->
+  <div class="grid-2">
+
+    <div class="card">
+      <div class="card-title">Movies vs TV Shows</div>
+      <div class="card-sub">Overall content type split</div>
+      <div class="donut-wrap" style="margin-top:8px;">
+        <div class="donut-canvas">
+          <canvas id="splitChart" width="140" height="140" role="img" aria-label="Donut chart: Movies 69.62%, TV Shows 30.38%">Movies 69.62%, TV Shows 30.38%</canvas>
+        </div>
+        <div class="donut-legend">
+          <div class="donut-item">
+            <div class="donut-dot" style="background:#E50914;"></div>
+            <div>
+              <span class="donut-pct">69.62%</span>
+              <span class="donut-lbl">Movies — 6,131 titles</span>
+            </div>
+          </div>
+          <div class="donut-item">
+            <div class="donut-dot" style="background:#2a78d6;"></div>
+            <div>
+              <span class="donut-pct">30.38%</span>
+              <span class="donut-lbl">TV Shows — 2,676 titles</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="insight">Netflix built its catalogue around films first — almost 7 in 10 titles are movies.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Content Rating Distribution</div>
+      <div class="card-sub">All 8,807 titles</div>
+      <div style="position:relative;width:100%;height:180px;">
+        <canvas id="ratingChart" role="img" aria-label="Bar chart of ratings. TV-MA leads with 3,207 titles.">TV-MA: 3207, TV-14: 2160, TV-PG: 863, R: 799, PG-13: 490, TV-Y7: 334, TV-Y: 307, PG: 287, TV-G: 220</canvas>
+      </div>
+      <div class="insight"><strong>TV-MA dominates</strong> with 3,207 titles — Netflix primarily targets adult audiences.</div>
+    </div>
+
+  </div>
+
+  <!-- Row 3: Countries + Genres + Directors -->
+  <div class="grid-3">
+
+    <div class="card">
+      <div class="card-title">Top 10 Countries</div>
+      <div class="card-sub">By number of titles produced</div>
+      <div id="countryBars" style="margin-top:4px;"></div>
+      <div class="insight">The <strong>US leads</strong> with 2,818 titles — nearly 3× India in second place.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Top 10 Genres</div>
+      <div class="card-sub">After splitting comma-separated column (Recursive CTE)</div>
+      <div id="genreBars" style="margin-top:4px;"></div>
+      <div class="insight"><strong>International Movies</strong> is #1 — reflects Netflix's global content push.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Top 10 Directors</div>
+      <div class="card-sub">By number of titles on Netflix</div>
+      <div id="directorBars" style="margin-top:4px;"></div>
+      <div class="insight"><strong>Rajiv Chilaka</strong> leads with 19 titles — known for animated Indian children's content.</div>
+    </div>
+
+  </div>
+
+  <!-- Row 4: Actors full width + Movie duration stats -->
+  <div class="grid-2">
+
+    <div class="card">
+      <div class="card-title">Top 10 Most-Appearing Actors</div>
+      <div class="card-sub">Counted by splitting cast column (Recursive CTE)</div>
+      <div style="position:relative;width:100%;height:240px;margin-top:4px;">
+        <canvas id="actorChart" role="img" aria-label="Bar chart of most frequent actors. Anupam Kher leads with 43 titles.">Anupam Kher 43, Shah Rukh Khan 35, Julie Tejwani 33, Naseeruddin Shah 32, Takahiro Sakurai 32, Rupa Bhimani 31, Akshay Kumar 30, Om Puri 30, Yuki Kaji 29, Amitabh Bachchan 28</canvas>
+      </div>
+      <div class="insight">8 of the top 10 most-appearing actors are from <strong>Indian cinema</strong> — reflecting Bollywood's heavy presence on Netflix.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Movie Duration & Time Stats</div>
+      <div class="card-sub">Key metrics from duration and date analysis</div>
+      <div class="stat-grid" style="margin-top: 10px;">
+        <div class="stat-item">
+          <div class="stat-num" style="color:#E50914;">99.58</div>
+          <div class="stat-desc">Average movie duration (minutes)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">312 min</div>
+          <div class="stat-desc">Longest movie<br>Black Mirror: Bandersnatch</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">3 min</div>
+          <div class="stat-desc">Shortest movie<br>Silent</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" style="color:#E50914;">1,142</div>
+          <div class="stat-desc">Movies longer than 120 minutes</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">259</div>
+          <div class="stat-desc">TV Shows with more than 3 seasons</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" style="color:#E50914;">4,793</div>
+          <div class="stat-desc">Titles added within 1 year of release</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">2,105</div>
+          <div class="stat-desc">Titles added 5+ years after release</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" style="color:#E50914;">July</div>
+          <div class="stat-desc">Month with most additions (819 titles)</div>
+        </div>
+      </div>
+      <div class="insight" style="margin-top:12px;">
+        <strong>Shah Rukh Khan</strong> appears in 35 Netflix titles. 
+        <strong>Anupam Kher</strong> holds the top spot with 43 appearances across the catalogue.
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<footer class="footer">
+  Netflix Content Analysis Using SQL &nbsp;·&nbsp; Karandeep Sandul &nbsp;·&nbsp; Data Analyst Portfolio Project &nbsp;·&nbsp;
+  Dataset: 8,807 titles &nbsp;·&nbsp; Tool: MySQL
+</footer>
+
+<script>
+/* ── helpers ── */
+const RED    = '#E50914';
+const BLUE   = '#2a78d6';
+const ORANGE = '#eb6834';
+const TEAL   = '#1baf7a';
+const VIOLET = '#6250d6';
+const AMBER  = '#eda100';
+const GREEN  = '#008300';
+const PINK   = '#e87ba4';
+const CRIMSON= '#e34948';
+const COLORS = [RED, BLUE, ORANGE, TEAL, VIOLET, AMBER, GREEN, PINK, CRIMSON, '#b45309'];
+
+const baseOpts = (xLabel, yLabel) => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#1a1a1a',
+      borderColor: '#333',
+      borderWidth: 1,
+      titleColor: '#fff',
+      bodyColor: '#aaa',
+      callbacks: { label: ctx => '  ' + ctx.parsed.y.toLocaleString() + (yLabel || '') }
+    }
+  },
+  scales: {
+    x: {
+      ticks: { color: '#666', font: { size: 11 }, autoSkip: false, maxRotation: 40 },
+      grid: { display: false },
+      border: { display: false }
+    },
+    y: {
+      ticks: { color: '#666', font: { size: 11 } },
+      grid: { color: '#2a2a2a' },
+      border: { display: false }
+    }
+  }
+});
+
+/* ── Year chart ── */
+new Chart(document.getElementById('yearChart'), {
+  type: 'bar',
+  data: {
+    labels: ['2012','2013','2014','2015','2016','2017','2018','2019','2020','2021'],
+    datasets: [{
+      data: [3, 10, 23, 73, 418, 1164, 1625, 1999, 1878, 1498],
+      backgroundColor: [BLUE,BLUE,BLUE,BLUE,BLUE,BLUE,BLUE,RED,BLUE,BLUE],
+      borderRadius: 4,
+      borderSkipped: 'bottom'
+    }]
+  },
+  options: {
+    ...baseOpts(),
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor:'#1a1a1a', borderColor:'#333', borderWidth:1,
+        titleColor:'#fff', bodyColor:'#aaa',
+        callbacks: { label: ctx => '  ' + ctx.parsed.y.toLocaleString() + ' titles' }
+      }
+    }
+  }
+});
+
+/* ── Split donut ── */
+new Chart(document.getElementById('splitChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Movies','TV Shows'],
+    datasets: [{
+      data: [6131, 2676],
+      backgroundColor: [RED, BLUE],
+      borderWidth: 0,
+      hoverOffset: 4
+    }]
+  },
+  options: {
+    responsive: false,
+    cutout: '68%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor:'#1a1a1a', borderColor:'#333', borderWidth:1,
+        titleColor:'#fff', bodyColor:'#aaa',
+        callbacks: { label: ctx => '  ' + ctx.label + ': ' + ctx.parsed.toLocaleString() }
+      }
+    }
+  }
+});
+
+/* ── Rating chart ── */
+new Chart(document.getElementById('ratingChart'), {
+  type: 'bar',
+  data: {
+    labels: ['TV-MA','TV-14','TV-PG','R','PG-13','TV-Y7','TV-Y','PG','TV-G'],
+    datasets: [{
+      data: [3207, 2160, 863, 799, 490, 334, 307, 287, 220],
+      backgroundColor: COLORS,
+      borderRadius: 4,
+      borderSkipped: 'bottom'
+    }]
+  },
+  options: {
+    ...baseOpts(null, ' titles'),
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor:'#1a1a1a', borderColor:'#333', borderWidth:1,
+        titleColor:'#fff', bodyColor:'#aaa',
+        callbacks: { label: ctx => '  ' + ctx.parsed.y.toLocaleString() + ' titles' }
+      }
+    }
+  }
+});
+
+/* ── Actor chart ── */
+new Chart(document.getElementById('actorChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Anupam Kher','Shah Rukh Khan','Julie Tejwani','Naseeruddin Shah',
+             'Takahiro Sakurai','Rupa Bhimani','Akshay Kumar','Om Puri','Yuki Kaji','Amitabh Bachchan'],
+    datasets: [{
+      data: [43, 35, 33, 32, 32, 31, 30, 30, 29, 28],
+      backgroundColor: COLORS,
+      borderRadius: 4,
+      borderSkipped: 'bottom'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor:'#1a1a1a', borderColor:'#333', borderWidth:1,
+        titleColor:'#fff', bodyColor:'#aaa',
+        callbacks: { label: ctx => '  ' + ctx.parsed.y + ' titles' }
+      }
+    },
+    scales: {
+      x: { ticks: { color:'#666', font:{size:10}, autoSkip:false, maxRotation:40 }, grid:{display:false}, border:{display:false} },
+      y: { ticks: { color:'#666', font:{size:11} }, grid:{color:'#2a2a2a'}, border:{display:false} }
+    }
+  }
+});
+
+/* ── Horizontal bar builder ── */
+function makeHBars(id, data, max) {
+  const el = document.getElementById(id);
+  el.innerHTML = data.map((d, i) => `
+    <div class="hbar-row">
+      <div class="hbar-rank">${i+1}</div>
+      <div class="hbar-label" title="${d.label}">${d.label}</div>
+      <div class="hbar-track">
+        <div class="hbar-fill" style="width:${Math.round(d.v / max * 100)}%;background:${COLORS[i]};"></div>
+      </div>
+      <div class="hbar-val">${d.v.toLocaleString()}</div>
+    </div>`).join('');
+}
+
+makeHBars('countryBars', [
+  {label:'United States',  v:2818},
+  {label:'India',          v:972},
+  {label:'United Kingdom', v:419},
+  {label:'Japan',          v:245},
+  {label:'South Korea',    v:199},
+  {label:'Canada',         v:181},
+  {label:'Spain',          v:145},
+  {label:'France',         v:124},
+  {label:'Mexico',         v:110},
+  {label:'Egypt',          v:106},
+], 2818);
+
+makeHBars('genreBars', [
+  {label:'International Movies',   v:2752},
+  {label:'Dramas',                 v:2427},
+  {label:'Comedies',               v:1674},
+  {label:'International TV Shows', v:1351},
+  {label:'Documentaries',          v:869},
+  {label:'Action & Adventure',     v:859},
+  {label:'TV Dramas',              v:763},
+  {label:'Independent Movies',     v:756},
+  {label:'Children & Family',      v:641},
+  {label:'Romantic Movies',        v:616},
+], 2752);
+
+makeHBars('directorBars', [
+  {label:'Rajiv Chilaka',          v:19},
+  {label:'Raúl Campos, Jan Suter', v:18},
+  {label:'Suhas Kadav',            v:16},
+  {label:'Marcus Raboy',           v:16},
+  {label:'Jay Karas',              v:14},
+  {label:'Cathy Garcia-Molina',    v:13},
+  {label:'Youssef Chahine',        v:12},
+  {label:'Martin Scorsese',        v:12},
+  {label:'Jay Chapman',            v:12},
+  {label:'Steven Spielberg',       v:11},
+], 19);
+</script>
+</body>
+</html>
