@@ -528,30 +528,3 @@ SELECT
     ) AS average_delay_years
 FROM netflix_data
 WHERE date_added IS NOT NULL;
-
-Window Function Practice
-Rank directors by number of titles.
-Rank countries by number of Movies.
-Find the top 5 longest Movies using ROW_NUMBER().
-Find the latest Movie added for each country.
-Find the oldest Movie in each country.
-🟤 Expert SQL Challenges
-Find the country with the highest percentage of TV Shows.
-Find directors whose average movie duration exceeds 120 minutes.
-Identify countries producing content across the most genres.
-Find actors who have appeared in both Movies and TV Shows.
-Identify genres that have grown the fastest over time.
-Find the most productive year for Netflix additions.
-Determine which rating has the highest average movie duration.
-Find content that was added on the same day as another title.
-Create a report showing yearly growth in Netflix content using window functions.
-Build a dashboard query summarizing:Total Titles
-Movies
-TV Shows
-Countries
-Directors
-Most Common Genre
-Most Common Rating
-Longest Movie
-Latest Release Year
-Earliest Release Year
